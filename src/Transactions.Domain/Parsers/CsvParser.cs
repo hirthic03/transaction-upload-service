@@ -23,7 +23,7 @@ public class CsvParser : IFileParser
             using var reader = new StreamReader(stream);
             using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                HasHeaderRecord = false,
+                HasHeaderRecord = true,
                 TrimOptions = TrimOptions.Trim,
                 BadDataFound = null
             });
@@ -33,8 +33,8 @@ public class CsvParser : IFileParser
             {
                 try
                 {
-                    var fields = ((IDictionary<string, object>)row).Values.ToArray();
-                    if (fields.Length != 5)
+                    var dict = (IDictionary<string, object>)row;
+                    if (dict.Count != 5)
                     {
                         return new ParseResult
                         {
@@ -45,11 +45,11 @@ public class CsvParser : IFileParser
 
                     var record = new TransactionRecord
                     {
-                        Id = fields[0]?.ToString()?.Trim('"') ?? string.Empty,
-                        Amount = ParseAmount(fields[1]?.ToString() ?? string.Empty),
-                        CurrencyCode = fields[2]?.ToString()?.Trim('"') ?? string.Empty,
-                        TransactionDate = ParseDateTime(fields[3]?.ToString()?.Trim('"') ?? string.Empty),
-                        Status = fields[4]?.ToString()?.Trim('"') ?? string.Empty
+                        Id = dict["TransactionId"]?.ToString()?.Trim('"') ?? string.Empty,
+                        Amount = ParseAmount(dict["Amount"]?.ToString() ?? string.Empty),
+                        CurrencyCode = dict["CurrencyCode"]?.ToString()?.Trim('"') ?? string.Empty,
+                        TransactionDate = ParseDateTime(dict["Date"]?.ToString()?.Trim('"') ?? string.Empty),
+                        Status = dict["Status"]?.ToString()?.Trim('"') ?? string.Empty
                     };
 
                     records.Add(record);

@@ -299,12 +299,10 @@
                     html += '<tbody>';
                     
                     data.forEach(tx => {
-                        const statusText = tx.status === 'A' ? 'Approved' : 
-                                         tx.status === 'R' ? 'Rejected' : 'Done';
                         html += `<tr>
                             <td>${tx.id}</td>
                             <td>${tx.payment}</td>
-                            <td><span class="status-badge status-${tx.status}">${statusText}</span></td>
+                            <td><span class="status-badge status-${tx.Status}">${tx.Status}</span></td>
                         </tr>`;
                     });
                     
