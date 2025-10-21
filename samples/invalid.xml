@@ -1,0 +1,26 @@
+<Transactions>
+  <Transaction id="Inv00001">
+    <TransactionDate>not-a-date</TransactionDate>
+    <PaymentDetails>
+      <Amount>200.00</Amount>
+      <CurrencyCode>USD</CurrencyCode>
+    </PaymentDetails>
+    <Status>Done</Status>
+  </Transaction>
+  <Transaction id="Inv00002">
+    <TransactionDate>2019-02-15T10:20:30</TransactionDate>
+    <PaymentDetails>
+      <Amount>invalid</Amount>
+      <CurrencyCode>EUR</CurrencyCode>
+    </PaymentDetails>
+    <Status>Approved</Status>
+  </Transaction>
+  <Transaction id="">
+    <TransactionDate>2019-03-10T09:15:25</TransactionDate>
+    <PaymentDetails>
+      <Amount>450.00</Amount>
+      <CurrencyCode>INVALID</CurrencyCode>
+    </PaymentDetails>
+    <Status>Rejected</Status>
+  </Transaction>
+</Transactions>

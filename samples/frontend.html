@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Upload System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+        
+        .upload-area.dragging {
+            border-color: #667eea;
+            background: #e7e9ff;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filters input, .filters select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .response {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .transactions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .transactions-table th,
+        .transactions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .transactions-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .transactions-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .status-A { background: #d4edda; color: #155724; }
+        .status-R { background: #f8d7da; color: #721c24; }
+        .status-D { background: #d1ecf1; color: #0c5460; }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>📊 Transaction Upload System</h1>
+            
+            <div class="upload-area" id="uploadArea">
+                <p>📁 Drag & drop your CSV or XML file here</p>
+                <p style="margin: 10px 0;">or</p>
+                <button class="btn">Browse Files</button>
+                <input type="file" id="fileInput" accept=".csv,.xml">
+                <p style="margin-top: 10px; font-size: 0.9em; color: #666;">Max file size: 1 MB</p>
+            </div>
+            
+            <div id="response" class="response"></div>
+        </div>
+        
+        <div class="card">
+            <h2>🔍 Search Transactions</h2>
+            
+            <div class="filters">
+                <input type="text" id="currencyFilter" placeholder="Currency (e.g., USD)">
+                <select id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="A">Approved</option>
+                    <option value="R">Rejected/Failed</option>
+                    <option value="D">Done/Finished</option>
+                </select>
+                <input type="date" id="fromDate" placeholder="From Date">
+                <input type="date" id="toDate" placeholder="To Date">
+                <button class="btn" onclick="searchTransactions()">Search</button>
+                <button class="btn" onclick="clearFilters()">Clear</button>
+            </div>
+            
+            <div id="transactionsContainer"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:5000/api/v1';
+        
+        // Upload functionality
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const responseDiv = document.getElementById('response');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                uploadFile(e.target.files[0]);
+            }
+        });
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragging');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragging');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragging');
+            if (e.dataTransfer.files.length > 0) {
+                uploadFile(e.dataTransfer.files[0]);
+            }
+        });
+        
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            responseDiv.style.display = 'block';
+            responseDiv.className = 'response';
+            responseDiv.innerHTML = 'Uploading... <span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_URL}/uploads`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseDiv.className = 'response success';
+                    responseDiv.innerHTML = `✅ Success! Import ID: ${data.importId}<br>Imported ${data.imported} transactions`;
+                    searchTransactions(); // Refresh transactions
+                } else {
+                    responseDiv.className = 'response error';
+                    if (data.errors) {
+                        let errorHtml = '❌ Validation errors:<ul>';
+                        data.errors.forEach(err => {
+                            errorHtml += `<li>Row ${err.row}, Field: ${err.field} - ${err.message}</li>`;
+                        });
+                        errorHtml += '</ul>';
+                        responseDiv.innerHTML = errorHtml;
+                    } else {
+                        responseDiv.innerHTML = `❌ Error: ${data.error || 'Unknown error'}`;
+                    }
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.innerHTML = `❌ Network error: ${error.message}`;
+            }
+            
+            fileInput.value = '';
+        }
+        
+        async function searchTransactions() {
+            const currency = document.getElementById('currencyFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            let url = `${API_URL}/transactions?`;
+            if (currency) url += `currency=${currency}&`;
+            if (status) url += `status=${status}&`;
+            if (fromDate) url += `from=${fromDate}&`;
+            if (toDate) url += `to=${toDate}&`;
+            
+            const container = document.getElementById('transactionsContainer');
+            container.innerHTML = '<p>Loading... <span class="loading"></span></p>';
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    container.innerHTML = '<p>No transactions found</p>';
+                } else {
+                    let html = '<table class="transactions-table">';
+                    html += '<thead><tr><th>ID</th><th>Payment</th><th>Status</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    data.forEach(tx => {
+                        const statusText = tx.status === 'A' ? 'Approved' : 
+                                         tx.status === 'R' ? 'Rejected' : 'Done';
+                        html += `<tr>
+                            <td>${tx.id}</td>
+                            <td>${tx.payment}</td>
+                            <td><span class="status-badge status-${tx.status}">${statusText}</span></td>
+                        </tr>`;
+                    });
+                    
+                    html += '</tbody></table>';
+                    container.innerHTML = html;
+                }
+            } catch (error) {
+                container.innerHTML = `<p class="error">Error loading transactions: ${error.message}</p>`;
+            }
+        }
+        
+        function clearFilters() {
+            document.getElementById('currencyFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('fromDate').value = '';
+            document.getElementById('toDate').value = '';
+            searchTransactions();
+        }
+        
+        // Load transactions on page load
+        searchTransactions();
+    </script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+"TransactionId","Amount","CurrencyCode","Date","Status"
+"Invoice0000001","not-a-number","USD","20/02/2019 12:33:16","Approved"
+"Invoice0000002","300.00","INVALIDCURRENCY","21/02/2019 02:04:59","Failed"
+"Invoice0000003","500.00","EUR","invalid-date-format","Finished"
