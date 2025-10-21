@@ -1,0 +1,68 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: YourStrong@Password123
+        ports:
+          - 1433:1433
+        options: --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'YourStrong@Password123' -Q 'SELECT 1'" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    
+    - name: Run tests
+      run: dotnet test --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage"
+      env:
+        ConnectionStrings__DefaultConnection: "Server=localhost;Database=TransactionsDb;User Id=sa;Password=YourStrong@Password123;TrustServerCertificate=True;"
+    
+    - name: Publish code coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./tests/Transactions.Tests/TestResults/**/coverage.cobertura.xml
+        fail_ci_if_error: true
+    
+    - name: Build Docker image
+      run: docker build -t transactions-api:${{ github.sha }} .
+    
+    - name: Run Docker container
+      run: |
+        docker run -d -p 5000:80 \
+          -e ConnectionStrings__DefaultConnection="Server=host.docker.internal;Database=TransactionsDb;User Id=sa;Password=YourStrong@Password123;TrustServerCertificate=True;" \
+          --name test-api \
+          transactions-api:${{ github.sha }}
+    
+    - name: Test API health endpoint
+      run: |
+        sleep 10
+        curl -f http://localhost:5000/health || exit 1
+    
+    - name: Stop containers
+      if: always()
+      run: docker stop test-api || true
